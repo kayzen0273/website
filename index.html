@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickCapture - Link Pengambil Foto Otomatis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        #video-preview {
+            transform: scaleX(-1); /* Mirror effect for selfie */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-4">
+        <!-- Header -->
+        <header class="py-6 text-center">
+            <h1 class="text-3xl font-bold text-indigo-600">QuickCapture</h1>
+            <p class="text-gray-500 text-sm">Berbagi link, ambil foto, unduh otomatis.</p>
+        </header>
+
+        <!-- Container Utama -->
+        <div id="main-content" class="bg-white rounded-3xl shadow-xl p-6 flex-grow flex flex-col justify-center">
+            <div id="loading-state" class="text-center py-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="mt-4 text-gray-500">Menyiapkan koneksi aman...</p>
+            </div>
+
+            <!-- Tampilan PENGIRIM (Dashboard Buat Link) -->
+            <div id="sender-view" class="hidden space-y-6">
+                <div class="text-center">
+                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Buat Tautan Baru</h2>
+                    <p class="text-gray-500 text-sm">Bagikan link ini ke orang lain. Foto yang mereka ambil akan langsung terunduh di HP/Laptop Anda.</p>
+                </div>
+
+                <button id="btn-create-session" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg active:scale-95">
+                    Generate Link Capture
+                </button>
+
+                <div id="share-section" class="hidden space-y-4 animate-fade-in">
+                    <div class="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                        <p class="text-[10px] uppercase font-bold text-gray-400 mb-1">Tautan Anda:</p>
+                        <p id="share-url" class="text-xs text-indigo-600 break-all font-mono"></p>
+                    </div>
+                    <button id="btn-copy" class="w-full bg-gray-800 text-white py-3 rounded-xl text-sm font-medium">
+                        Salin Tautan
+                    </button>
+                    <div class="pt-4 border-t">
+                        <p class="text-center text-xs text-green-600 font-medium flex items-center justify-center">
+                            <span class="relative flex h-2 w-2 mr-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            Menunggu kiriman foto...
+                        </p>
+                        <div id="download-history" class="mt-4 space-y-2">
+                            <!-- List download otomatis akan muncul di sini -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tampilan PENERIMA (Konfirmasi & Kamera) -->
+            <div id="receiver-view" class="hidden space-y-6">
+                <div id="permission-step" class="text-center py-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Permintaan Foto</h2>
+                    <p class="text-gray-500 mt-2">Seseorang ingin Anda mengirimkan foto saat ini melalui link aman ini.</p>
+                    <button id="btn-open-camera" class="mt-8 w-full bg-green-600 text-white font-bold py-4 rounded-2xl shadow-lg">
+                        Berikan Izin Kamera
+                    </button>
+                </div>
+
+                <div id="camera-step" class="hidden space-y-4">
+                    <div class="relative rounded-2xl overflow-hidden bg-black shadow-inner aspect-[3/4]">
+                        <video id="video-preview" class="w-full h-full object-cover" autoplay playsinline></video>
+                        <div class="absolute bottom-4 left-0 right-0 flex justify-center">
+                            <button id="btn-capture" class="bg-white p-4 rounded-full shadow-xl active:scale-90 transition-transform">
+                                <div class="w-10 h-10 border-4 border-indigo-600 rounded-full"></div>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-center text-xs text-gray-400">Posisikan wajah Anda dan tekan tombol ambil foto.</p>
+                </div>
+
+                <div id="sending-step" class="hidden text-center py-10">
+                    <div class="animate-bounce text-4xl mb-4">🚀</div>
+                    <h2 class="text-xl font-bold">Mengirim Foto...</h2>
+                </div>
+            </div>
+
+            <!-- Tampilan SUKSES -->
+            <div id="success-view" class="hidden text-center py-10 animate-scale-up">
+                <div class="text-6xl mb-4 text-green-500">✅</div>
+                <h2 class="text-2xl font-bold text-gray-800">Berhasil Terkirim!</h2>
+                <p class="text-gray-500 mt-2">Foto Anda telah diterima oleh pengirim link. Anda bisa menutup halaman ini.</p>
+            </div>
+        </div>
+        
+        <footer class="py-6 text-center text-gray-400 text-[10px]">
+            &copy; 2024 QuickCapture Secure Protocol. Gunakan dengan bijak.
+        </footer>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi dari Environment
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-capture-app';
+
+        // State Global
+        let currentUser = null;
+        let activeSessionId = null;
+        let stream = null;
+
+        // UI Elements
+        const views = {
+            loading: document.getElementById('loading-state'),
+            sender: document.getElementById('sender-view'),
+            receiver: document.getElementById('receiver-view'),
+            success: document.getElementById('success-view')
+        };
+
+        function showView(viewName) {
+            Object.keys(views).forEach(key => views[key].classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+        }
+
+        // 1. Inisialisasi Auth (RULE 3)
+        async function init() {
+            try {
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        checkRoute();
+                    }
+                });
+            } catch (error) {
+                console.error("Auth Error:", error);
+                alert("Koneksi gagal. Silakan muat ulang halaman.");
+            }
+        }
+
+        // 2. Cek apakah user adalah Pengirim atau Penerima
+        function checkRoute() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sid = urlParams.get('sid');
+
+            if (sid) {
+                // Mode Penerima
+                activeSessionId = sid;
+                showView('receiver');
+            } else {
+                // Mode Pengirim
+                showView('sender');
+            }
+        }
+
+        // --- LOGIKA PENGIRIM ---
+
+        document.getElementById('btn-create-session').addEventListener('click', () => {
+            activeSessionId = Math.random().toString(36).substring(2, 15);
+            const shareUrl = `${window.location.origin}${window.location.pathname}?sid=${activeSessionId}`;
+            
+            document.getElementById('share-url').innerText = shareUrl;
+            document.getElementById('share-section').classList.remove('hidden');
+            document.getElementById('btn-create-session').classList.add('hidden');
+            
+            startListeningForPhotos();
+        });
+
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            const url = document.getElementById('share-url').innerText;
+            const temp = document.createElement('textarea');
+            temp.value = url;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            
+            const btn = document.getElementById('btn-copy');
+            btn.innerText = 'Tersalin!';
+            btn.classList.replace('bg-gray-800', 'bg-green-600');
+            setTimeout(() => {
+                btn.innerText = 'Salin Tautan';
+                btn.classList.replace('bg-green-600', 'bg-gray-800');
+            }, 2000);
+        });
+
+        function startListeningForPhotos() {
+            if (!currentUser) return;
+            
+            // RULE 1: Menggunakan path sesuai protokol
+            const collectionPath = `artifacts/${appId}/public/data/${activeSessionId}_photos`;
+            const q = collection(db, collectionPath);
+
+            // Listener real-time
+            onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const data = change.doc.data();
+                        // Verifikasi data
+                        if (data.image) {
+                            handleAutoDownload(data.image);
+                        }
+                    }
+                });
+            }, (error) => {
+                console.error("Firestore Error:", error);
+            });
+        }
+
+        function handleAutoDownload(base64Data) {
+            const timestamp = new Date().getTime();
+            const fileName = `capture_${timestamp}.png`;
+            
+            // Log di UI
+            const history = document.getElementById('download-history');
+            const item = document.createElement('div');
+            item.className = "text-[10px] bg-green-50 text-green-700 p-2 rounded border border-green-200 animate-pulse";
+            item.innerText = `📥 Foto diterima & diunduh: ${fileName}`;
+            history.prepend(item);
+
+            // Trigger download fisik
+            const link = document.createElement('a');
+            link.href = base64Data;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- LOGIKA PENERIMA ---
+
+        document.getElementById('btn-open-camera').addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" }, 
+                    audio: false 
+                });
+                const video = document.getElementById('video-preview');
+                video.srcObject = stream;
+                
+                document.getElementById('permission-step').classList.add('hidden');
+                document.getElementById('camera-step').classList.remove('hidden');
+            } catch (err) {
+                alert("Izin kamera ditolak atau tidak tersedia.");
+            }
+        });
+
+        document.getElementById('btn-capture').addEventListener('click', async () => {
+            const video = document.getElementById('video-preview');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            // Mirror flip for saving
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0);
+            
+            const imageData = canvas.toDataURL('image/png');
+
+            // Hentikan kamera
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Kirim ke database
+            document.getElementById('camera-step').classList.add('hidden');
+            document.getElementById('sending-step').classList.remove('hidden');
+
+            try {
+                const collectionPath = `artifacts/${appId}/public/data/${activeSessionId}_photos`;
+                await addDoc(collection(db, collectionPath), {
+                    image: imageData,
+                    createdAt: serverTimestamp(),
+                    senderUid: currentUser.uid
+                });
+                
+                showView('success');
+            } catch (error) {
+                console.error("Send Error:", error);
+                alert("Gagal mengirim foto. Coba lagi.");
+                location.reload();
+            }
+        });
+
+        // Run App
+        init();
+
+    </script>
+</body>
+</html>
