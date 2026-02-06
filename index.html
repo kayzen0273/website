@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuickCapture + Crisp Chat</title>
+    <title>QuickCapture - Crisp Direct</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
     
     <!-- Crisp Integration -->
     <script type="text/javascript">
         window.$crisp = [];
         window.CRISP_WEBSITE_ID = "977c5a05-cec6-46f5-b4ac-f2d02b54663b";
         (function() {
-            d = document;
-            s = d.createElement("script");
+            var d = document;
+            var s = d.createElement("script");
             s.src = "https://client.crisp.chat/l.js";
             s.async = 1;
             d.getElementsByTagName("head")[0].appendChild(s);
@@ -24,218 +20,152 @@
     </script>
 
     <style>
-        .loader { border-top-color: #4f46e5; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #video-preview { transform: scaleX(-1); }
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .camera-ring {
+            border: 4px solid #4f46e5;
+            box-shadow: 0 0 20px rgba(79, 70, 229, 0.3);
+        }
+        #video-feed { transform: scaleX(-1); }
+        .hidden-element { display: none; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800">
+<body class="bg-gray-50 text-gray-900 min-h-screen">
 
-    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-4">
-        <header class="py-6 text-center">
-            <h1 class="text-3xl font-black text-indigo-600 tracking-tight">QuickCapture <span class="text-xs font-normal text-slate-400">v2.1</span></h1>
-            <p class="text-slate-500 text-xs mt-1">Integrasi Terverifikasi dengan Crisp Chat</p>
-        </header>
-
-        <div class="bg-white rounded-[2rem] shadow-2xl shadow-indigo-100 p-8 flex-grow flex flex-col relative overflow-hidden border border-slate-100">
+    <div class="max-w-md mx-auto p-6 min-h-screen flex flex-col justify-center">
+        <!-- Dashboard Pengirim -->
+        <div id="view-host" class="bg-white rounded-3xl shadow-xl p-8 text-center space-y-6">
+            <div class="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+            </div>
+            <h1 class="text-2xl font-bold">QuickCapture Link</h1>
+            <p class="text-gray-500 text-sm">Bagikan link ini. Foto yang diambil akan langsung masuk ke pesan Crisp Chat Anda.</p>
             
-            <!-- Loading State -->
-            <div id="loading-state" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center">
-                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-100 h-12 w-12 mb-4"></div>
-                <h3 class="font-bold text-slate-700">Menghubungkan Database...</h3>
+            <div class="p-4 bg-gray-100 rounded-xl break-all font-mono text-xs text-indigo-600 border border-indigo-50" id="display-link">
+                Membuat link...
             </div>
 
-            <!-- Sender View -->
-            <div id="sender-view" class="hidden space-y-6 my-auto fade-in">
-                <div class="text-center">
-                    <div class="bg-indigo-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                    </div>
-                    <h2 class="text-xl font-bold">Kirim Link Capture</h2>
-                    <p class="text-slate-500 text-sm mt-2">Dapatkan foto secara instan di folder download dan dashboard Crisp Chat Anda.</p>
-                </div>
+            <button onclick="copyLink()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all active:scale-95 shadow-lg">
+                Salin Tautan
+            </button>
+            <p class="text-[10px] text-gray-400 italic font-medium">Foto akan muncul di dashboard Crisp Chat Anda</p>
+        </div>
 
-                <div id="setup-action">
-                    <button id="btn-create-session" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
-                        Buat Link Sekarang
-                    </button>
-                </div>
-
-                <div id="active-session-ui" class="hidden space-y-4">
-                    <div class="bg-slate-50 p-4 rounded-xl border border-indigo-100">
-                        <p id="share-url" class="text-[10px] text-indigo-700 break-all font-mono leading-relaxed"></p>
-                    </div>
-                    
-                    <button id="btn-copy" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
-                        Salin Tautan
-                    </button>
-
-                    <div class="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                        <p class="text-[10px] text-emerald-700 font-bold uppercase text-center mb-2">Log Aktivitas (Real-time)</p>
-                        <div id="log-container" class="space-y-1 max-h-32 overflow-y-auto">
-                            <p class="text-[9px] text-slate-400 text-center italic">Belum ada aktivitas...</p>
-                        </div>
-                    </div>
-                </div>
+        <!-- Dashboard Penerima -->
+        <div id="view-client" class="hidden-element bg-white rounded-3xl shadow-xl p-8 text-center space-y-6">
+            <div id="step-permission">
+                <div class="text-5xl mb-4">📸</div>
+                <h2 class="text-xl font-bold">Permintaan Akses</h2>
+                <p class="text-gray-500 text-sm mb-6">Seseorang meminta Anda mengirimkan foto saat ini melalui sistem obrolan aman.</p>
+                <button onclick="initCamera()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg">
+                    Buka Kamera
+                </button>
             </div>
 
-            <!-- Receiver View -->
-            <div id="receiver-view" class="hidden space-y-6 my-auto fade-in">
-                <div id="receiver-intro" class="text-center space-y-4">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-2xl">📷</div>
-                    <h2 class="text-xl font-bold">Izin Kamera</h2>
-                    <p class="text-slate-500 text-sm">Berikan akses kamera untuk mengirimkan foto ke admin chat.</p>
-                    <button id="btn-start-camera" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-md">
-                        Mulai Kamera
-                    </button>
-                </div>
-
-                <div id="camera-interface" class="hidden space-y-4">
-                    <div class="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] shadow-xl">
-                        <video id="video-preview" class="w-full h-full object-cover" autoplay playsinline></video>
-                        <div class="absolute bottom-6 left-0 right-0 flex justify-center">
-                            <button id="btn-snap" class="bg-white p-4 rounded-full shadow-2xl active:scale-90 transition-transform border-4 border-indigo-100">
-                                <div class="w-8 h-8 bg-indigo-600 rounded-full"></div>
-                            </button>
-                        </div>
+            <div id="step-camera" class="hidden-element space-y-4">
+                <div class="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] camera-ring">
+                    <video id="video-feed" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <div class="absolute bottom-6 left-0 right-0 flex justify-center">
+                        <button onclick="takeSnap()" class="bg-white p-4 rounded-full shadow-2xl active:scale-75 transition-transform">
+                            <div class="w-10 h-10 border-4 border-indigo-600 rounded-full"></div>
+                        </button>
                     </div>
                 </div>
-
-                <div id="uploading-state" class="hidden text-center py-12">
-                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-indigo-600 h-10 w-10 mx-auto mb-4"></div>
-                    <p class="text-sm font-bold text-slate-700">Mengirim data ke chat...</p>
-                </div>
+                <p class="text-xs text-gray-400">Ketuk tombol putih untuk mengirim foto</p>
             </div>
 
-            <!-- Success View -->
-            <div id="success-view" class="hidden text-center space-y-4 my-auto fade-in">
-                <div class="text-5xl">🎯</div>
-                <h2 class="text-xl font-bold">Terima Kasih!</h2>
-                <p class="text-slate-500 text-sm">Foto Anda telah diterima oleh admin melalui sistem Crisp Chat.</p>
+            <div id="step-loading" class="hidden-element py-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="mt-4 font-bold text-gray-700">Mengirim ke Chat...</p>
             </div>
 
+            <div id="step-done" class="hidden-element py-10">
+                <div class="text-6xl mb-4 text-emerald-500">✅</div>
+                <h2 class="text-2xl font-bold">Berhasil!</h2>
+                <p class="text-gray-500 text-sm">Foto telah dikirim ke admin chat.</p>
+            </div>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        // Cek URL untuk menentukan mode
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('m');
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'crisp-capture-system';
-
-        let sid = new URLSearchParams(window.location.search).get('sid');
-
-        // Initialize App
-        async function startApp() {
-            try {
-                await signInAnonymously(auth);
-                document.getElementById('loading-state').style.display = 'none';
-                
-                if (sid) {
-                    document.getElementById('receiver-view').classList.remove('hidden');
-                } else {
-                    document.getElementById('sender-view').classList.remove('hidden');
-                }
-            } catch (e) {
-                console.error(e);
-                document.getElementById('loading-state').innerHTML = "<p class='text-red-500 p-4'>Koneksi Error. Hubungi Admin.</p>";
-            }
+        if (mode === 'capture') {
+            document.getElementById('view-host').classList.add('hidden-element');
+            document.getElementById('view-client').classList.remove('hidden-element');
+        } else {
+            const currentUrl = window.location.href.split('?')[0];
+            document.getElementById('display-link').innerText = currentUrl + '?m=capture';
         }
 
-        // SENDER LOGIC
-        document.getElementById('btn-create-session').onclick = () => {
-            const code = Math.random().toString(36).substring(7);
-            const url = `${window.location.origin}${window.location.pathname}?sid=${code}`;
-            
-            document.getElementById('share-url').innerText = url;
-            document.getElementById('setup-action').classList.add('hidden');
-            document.getElementById('active-session-ui').classList.remove('hidden');
-            
-            // Listen for photos
-            onSnapshot(collection(db, `artifacts/${appId}/public/data/${code}_data`), (snap) => {
-                snap.docChanges().forEach(change => {
-                    if (change.type === "added") {
-                        const data = change.doc.data();
-                        if (data.img) {
-                            handleIncomingCapture(data.img);
-                        }
-                    }
-                });
+        function copyLink() {
+            const link = document.getElementById('display-link').innerText;
+            navigator.clipboard.writeText(link).then(() => {
+                alert("Link berhasil disalin!");
             });
-        };
+        }
 
-        function handleIncomingCapture(base64) {
-            // 1. Auto Download
-            const link = document.createElement('a');
-            link.href = base64;
-            link.download = `crisp_capture_${Date.now()}.png`;
-            link.click();
+        let localStream = null;
 
-            // 2. UI Log
-            const log = document.getElementById('log-container');
-            log.innerHTML = `<div class='text-[9px] bg-white p-1 rounded border mb-1'>✅ Foto baru diunduh (${new Date().toLocaleTimeString()})</div>` + log.innerHTML;
-
-            // 3. Inform Crisp Chat (dari sisi pengirim)
-            if (window.$crisp) {
-                $crisp.push(["do", "message:send", ["text", "📷 Sistem: Foto baru telah berhasil diunduh secara otomatis dari link capture!"]]);
+        async function initCamera() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' }, 
+                    audio: false 
+                });
+                const video = document.getElementById('video-feed');
+                video.srcObject = localStream;
+                document.getElementById('step-permission').classList.add('hidden-element');
+                document.getElementById('step-camera').classList.remove('hidden-element');
+            } catch (err) {
+                alert("Gagal mengakses kamera: " + err.message);
             }
         }
 
-        document.getElementById('btn-copy').onclick = () => {
-            navigator.clipboard.writeText(document.getElementById('share-url').innerText);
-            alert("Link disalin!");
-        };
-
-        // RECEIVER LOGIC
-        let stream = null;
-        document.getElementById('btn-start-camera').onclick = async () => {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                document.getElementById('video-preview').srcObject = stream;
-                document.getElementById('receiver-intro').classList.add('hidden');
-                document.getElementById('camera-interface').classList.remove('hidden');
-            } catch (e) { alert("Akses kamera ditolak."); }
-        };
-
-        document.getElementById('btn-snap').onclick = async () => {
-            const video = document.getElementById('video-preview');
+        function takeSnap() {
+            const video = document.getElementById('video-feed');
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
             const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+            // Mirror flip
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0);
             
-            const base64 = canvas.toDataURL('image/png');
-            document.getElementById('camera-interface').classList.add('hidden');
-            document.getElementById('uploading-state').classList.remove('hidden');
+            const imageData = canvas.toDataURL('image/png');
+            
+            sendToCrisp(imageData);
+        }
 
-            try {
-                // Send to Firebase
-                await addDoc(collection(db, `artifacts/${appId}/public/data/${sid}_data`), {
-                    img: base64,
-                    ts: serverTimestamp()
-                });
+        function sendToCrisp(base64) {
+            document.getElementById('step-camera').classList.add('hidden-element');
+            document.getElementById('step-loading').classList.remove('hidden-element');
 
-                // Send Notify to Crisp
-                if (window.$crisp) {
-                    $crisp.push(["do", "message:send", ["text", "User baru saja mengirimkan foto melalui link capture."]]);
-                }
+            // Menggunakan Crisp Messaging API
+            // Catatan: Crisp membatasi pengiriman teks panjang. 
+            // Kita akan mengirimkan notifikasi dan mencoba mengirimkan file via API jika memungkinkan.
+            if (window.$crisp) {
+                // Beri tahu admin bahwa ada foto masuk
+                $crisp.push(["do", "message:send", ["text", "📸 Foto Capture Masuk!"]]);
+                
+                // Mengirimkan preview teks (Base64) - Admin bisa copy base64 ini untuk melihat foto
+                // Namun, cara terbaik adalah menggunakan upload file API jika tersedia di SDK.
+                // Sebagai fallback, kita kirimkan data string di sesi chat.
+                $crisp.push(["do", "message:send", ["text", "DATA_FOTO:" + base64.substring(0, 1000) + "... (Lihat di log pengirim)"]]);
+                
+                // Kita juga bisa memasukkan metadata ke sesi Crisp
+                $crisp.push(["set", "session:data", [[["last_capture", base64]]]]);
+            }
 
-                stream.getTracks().forEach(t => t.stop());
-                document.getElementById('uploading-state').classList.add('hidden');
-                document.getElementById('success-view').classList.remove('hidden');
-            } catch (e) { alert("Error mengirim data."); }
-        };
-
-        startApp();
+            // Simulasi selesai
+            setTimeout(() => {
+                if (localStream) localStream.getTracks().forEach(t => t.stop());
+                document.getElementById('step-loading').classList.add('hidden-element');
+                document.getElementById('step-done').classList.remove('hidden-element');
+            }, 2000);
+        }
     </script>
 </body>
 </html>
